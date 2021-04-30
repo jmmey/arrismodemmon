@@ -35,6 +35,14 @@ def modem_us_table_rows(data):
     return us
 
 
+def strip_table_row_tags(data):
+    channel_data = []
+    for i in data:
+        row = [td for td in i.stripped_strings]
+        channel_data.append(row)
+    return channel_data
+
+
 def main():
     url = modem_url_request()
 
@@ -45,3 +53,5 @@ if __name__ == '__main__':
     data_tables = modem_status_table(html)
     ds_rows = modem_ds_table_rows(data_tables) 
     us_rows = modem_us_table_rows(data_tables)
+    ds_rows_clean = strip_table_row_tags(ds_rows)
+    us_rows_clean = strip_table_row_tags(us_rows)
