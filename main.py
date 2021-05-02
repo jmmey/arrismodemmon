@@ -4,6 +4,7 @@ import time
 import requests
 from bs4 import BeautifulSoup as bs
 
+MEASURE_RE = r'\W*\d*\.\d*'
 
 def modem_url_request(url='http://192.168.100.1'):
     """
