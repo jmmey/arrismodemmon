@@ -80,6 +80,7 @@ def prep_influx_json(ds, us):
 def main():
     url = modem_url_request()
 
+#TODO: function to inject influxdb with json_body
 
 if __name__ == '__main__':
     req = modem_url_request()
