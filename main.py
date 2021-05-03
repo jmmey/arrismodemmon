@@ -71,22 +71,29 @@ def prep_influx_json(ds, us):
         channel = row[0]
         power = re.match(MEASURE_RE, row[5]).group(0)
         snr = re.match(MEASURE_RE, row[6]).group(0)
-        ds_data = {
+        ds_data_power = {
             'measurement': 'modem_rf_stats',
-            'tags': {'direction': 'downstream'},
+            'tags': {'direction': 'downstream', 'channel': channel, 'measure': 'power'},
             'time': DATA_TIME,
-            'fields': {'channel': channel, 'power': power, 'snr': snr}
+            'fields': {'power': power}
         }
-        modem_data.append(ds_data)
+        ds_data_snr = {
+            'measurement': 'modem_rf_stats',
+            'tags': {'direction': 'downstream', 'channel': channel, 'measure': 'snr'},
+            'time': DATA_TIME,
+            'fields': {'snr': snr}
+        }
+        modem_data.append(ds_data_power)
+        modem_data.append(ds_data_snr)
     # Upstream Data
     for row in us:
         channel = row[0]
         power = re.match(MEASURE_RE, row[-1]).group(0)
         us_data = {
             'measurement': 'modem_rf_stats',
-            'tags': {'direction': 'upstream'},
+            'tags': {'direction': 'upstream', 'channel': channel, 'measure': 'power'},
             'time': DATA_TIME,
-            'fields': {'channel': channel, 'power': power}
+            'fields': {'power': power}
         }
         modem_data.append(us_data)
     json_body = json.dumps(modem_data)
