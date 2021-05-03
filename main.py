@@ -1,13 +1,29 @@
 #!/usr/bin/env python3
 
+import os
 import re
 import time
 import json
 import requests
 from bs4 import BeautifulSoup as bs
+from influxdb import InfluxDBClient
 
 MEASURE_RE = r'\W*\d*\.\d*'
 DATA_TIME = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+
+DB_USER = os.getenv("INFLUX_USER") if os.getenv("INFLUX_USER") else DB_USERNAME
+DB_PASS = os.getenv("INFLUX_PASS") if os.getenv("INFLUX_PASS") else DB_PASSWORD
+DB_HOST = os.getenv("INFLUX_HOST") if os.getenv("INFLUX_HOST") else DB_SERVER_NAME
+DB_NAME = os.getenv("INFLUX_DB_NAME") if os.getenv("INFLUX_DB_NAME") else DB_INFLUX_NAME
+
+# Influx DB Account
+# Set environment variables for "INFLUX_USER" and "INFLUX_PASS", 
+# but if you do not want to set them add your account information 
+# in the variables below.
+DB_USERNAME = ''
+DB_PASSWORD = ''
+DB_SERVER_NAME = ''
+DB_INFLUX_NAME = ''
 
 def modem_url_request(url='http://192.168.100.1'):
     """
@@ -77,6 +93,27 @@ def prep_influx_json(ds, us):
     return json_body
 
 
+def write_influxdb_data(data):
+    client = InfluxDBClient(
+        host=DB_HOST,
+        port=8086,
+        username=DB_USER,
+        password=DB_PASS,
+        ssl=True,
+        verify_ssl=False
+    )
+    db_write = client.write_points(
+        data,
+        time_precision=None,
+        database=DB_NAME,
+        protocol='json'
+        )
+    if db_write == True:
+        return True
+    else:
+        return "Error"
+        
+
 def main():
     url = modem_url_request()
 
@@ -91,3 +128,5 @@ if __name__ == '__main__':
     ds_rows_clean = strip_table_row_tags(ds_rows)
     us_rows_clean = strip_table_row_tags(us_rows)
     json_body = prep_influx_json(ds_rows_clean, us_rows_clean)
+    json_body = json.loads(json_body)
+    write_data = write_influxdb_data(json_body)
