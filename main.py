@@ -9,21 +9,28 @@ from bs4 import BeautifulSoup as bs
 from influxdb import InfluxDBClient
 
 MEASURE_RE = r'\W*\d*\.\d*'
-DATA_TIME = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+TRUST_SSL = True
 
+"""
+Influx DB Account
+Set environment variables for "INFLUX_USER" and "INFLUX_PASS", 
+but if you do not want to set them add your account information 
+in the variables below.
+"""
+DB_USERNAME = ''
+DB_PASSWORD = ''
+DB_SERVER_NAME = ''
+DB_INFLUX_NAME = ''
+
+"""
+If environment variables exist use those
+if not use the above variable settings.
+"""
 DB_USER = os.getenv("INFLUX_USER") if os.getenv("INFLUX_USER") else DB_USERNAME
 DB_PASS = os.getenv("INFLUX_PASS") if os.getenv("INFLUX_PASS") else DB_PASSWORD
 DB_HOST = os.getenv("INFLUX_HOST") if os.getenv("INFLUX_HOST") else DB_SERVER_NAME
 DB_NAME = os.getenv("INFLUX_DB_NAME") if os.getenv("INFLUX_DB_NAME") else DB_INFLUX_NAME
 
-# Influx DB Account
-# Set environment variables for "INFLUX_USER" and "INFLUX_PASS", 
-# but if you do not want to set them add your account information 
-# in the variables below.
-DB_USERNAME = ''
-DB_PASSWORD = ''
-DB_SERVER_NAME = ''
-DB_INFLUX_NAME = ''
 
 def modem_url_request(url='http://192.168.100.1'):
     """
@@ -107,7 +114,7 @@ def write_influxdb_data(data):
         username=DB_USER,
         password=DB_PASS,
         ssl=True,
-        verify_ssl=False
+        verify_ssl=TRUST_SSL
     )
     db_write = client.write_points(
         data,
