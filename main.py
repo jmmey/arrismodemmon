@@ -129,10 +129,9 @@ def write_influxdb_data(data):
         
 
 def main():
-    url = modem_url_request()
-
-
-if __name__ == '__main__':
+    """
+    main program
+    """ 
     req = modem_url_request()
     html = parse_html(req)
     data_tables = modem_status_table(html)
@@ -143,3 +142,9 @@ if __name__ == '__main__':
     json_body = prep_influx_json(ds_rows_clean, us_rows_clean)
     json_body = json.loads(json_body)
     write_data = write_influxdb_data(json_body)
+
+
+if __name__ == '__main__':
+    while True:
+        main()
+        time.sleep(300)
