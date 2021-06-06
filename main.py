@@ -13,8 +13,8 @@ TRUST_SSL = True
 
 """
 Influx DB Account
-Set environment variables for "INFLUX_USER" and "INFLUX_PASS", 
-but if you do not want to set them add your account information 
+Set environment variables for "INFLUX_USER" and "INFLUX_PASS",
+but if you do not want to set them add your account information
 in the variables below.
 """
 DB_USERNAME = ''
@@ -36,13 +36,20 @@ def modem_url_request(url='http://192.168.100.1'):
     """
     Makes http request to Arris modem
     web page. Returns page content
-    """ 
-    r = requests.get(url).content
-    return r
+    """
+    try:
+        r = requests.get(url).content
+    except:
+        r = 'failed'
+
+    if r == 'failed':
+        return 'failed'
+    else:
+        return r
 
 
 def parse_html(content):
-    soup = bs(content, 'html.parser') 
+    soup = bs(content, 'html.parser')
     return soup
 
 
@@ -126,22 +133,25 @@ def write_influxdb_data(data):
         return True
     else:
         return "Error"
-        
+
 
 def main():
     """
     main program
-    """ 
+    """
     req = modem_url_request()
-    html = parse_html(req)
-    data_tables = modem_status_table(html)
-    ds_rows = modem_ds_table_rows(data_tables) 
-    us_rows = modem_us_table_rows(data_tables)
-    ds_rows_clean = strip_table_row_tags(ds_rows)
-    us_rows_clean = strip_table_row_tags(us_rows)
-    json_body = prep_influx_json(ds_rows_clean, us_rows_clean)
-    json_body = json.loads(json_body)
-    write_data = write_influxdb_data(json_body)
+    if req == 'failed':
+        pass
+    else:
+        html = parse_html(req)
+        data_tables = modem_status_table(html)
+        ds_rows = modem_ds_table_rows(data_tables)
+        us_rows = modem_us_table_rows(data_tables)
+        ds_rows_clean = strip_table_row_tags(ds_rows)
+        us_rows_clean = strip_table_row_tags(us_rows)
+        json_body = prep_influx_json(ds_rows_clean, us_rows_clean)
+        json_body = json.loads(json_body)
+        write_influxdb_data(json_body)
 
 
 if __name__ == '__main__':
