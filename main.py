@@ -8,7 +8,9 @@ from dotenv import load_dotenv
 from bs4 import BeautifulSoup as bs
 from influxdb_client import InfluxDBClient, WriteOptions
 
+# ---------------------------------
 # Load in environment variables
+# ---------------------------------
 load_dotenv()
 
 # Influxdb2 API URL
@@ -19,12 +21,13 @@ DB_TOKEN = os.getenv("DB_TOKEN")
 DB_ORG = os.getenv("DB_ORG")
 # Influxdb2 Bucket ID
 DB_BUCKET = os.getenv("DB_BUCKET")
-
-# Regular expression to search modem data
-MEASURE_RE = r"\W*\d*\.\d*"
-
 # Modem sample rate in seconds (int)
-MODEM_DATA_SAMPLE_RATE = 60
+MODEM_DATA_SAMPLE_RATE = int(os.getenv("MODEM_SAMPLE_RATE"))
+
+# ------------------------------------------
+# Regular expression to search modem data
+# ------------------------------------------
+MEASURE_RE = r"\W*\d*\.\d*"
 
 
 def modem_url_request(url="http://192.168.100.1"):
@@ -126,7 +129,10 @@ def influxdb2_writer(input_data):
                 exponential_base=2,
             )
         ) as _write_client:
-            _write_client.write(DB_BUCKET, DB_ORG, input_data, write_precision="s")
+            try:
+                _write_client.write(DB_BUCKET, DB_ORG, input_data, write_precision="s")
+            except:
+                pass
 
 
 def main():
