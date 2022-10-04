@@ -4,4 +4,6 @@ Intent is to pull RF data and logs from an Arris SB6183 cable modem web interfac
 
 ## Acceptable Cable Signal Levels
 
-- Downstream power acceptable range: -15 dBmV to +15 dBmV
+See the webpage below, or PDF `SB6183_Cable_Signal_Levels.pdf` in this repository for acceptable RF levels.
+
+[Arris Modem Signal Levels](https://arris.secure.force.com/consumers/articles/General_FAQs/SB6183-Cable-Signal-Levels)
