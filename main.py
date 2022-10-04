@@ -3,36 +3,34 @@
 import os
 import re
 import time
-import json
 import requests
+from dotenv import load_dotenv
 from bs4 import BeautifulSoup as bs
-from influxdb import InfluxDBClient
+from influxdb_client import InfluxDBClient, WriteOptions
 
-MEASURE_RE = r'\W*\d*\.\d*'
-TRUST_SSL = True
+# ---------------------------------
+# Load in environment variables
+# ---------------------------------
+load_dotenv()
 
-"""
-Influx DB Account
-Set environment variables for "INFLUX_USER" and "INFLUX_PASS",
-but if you do not want to set them add your account information
-in the variables below.
-"""
-DB_USERNAME = ''
-DB_PASSWORD = ''
-DB_SERVER_NAME = ''
-DB_INFLUX_NAME = ''
+# Influxdb2 API URL
+DB_URL = os.getenv("DB_URL")
+# Influxdb2 API Token
+DB_TOKEN = os.getenv("DB_TOKEN")
+# Influxdb2 ORG ID
+DB_ORG = os.getenv("DB_ORG")
+# Influxdb2 Bucket ID
+DB_BUCKET = os.getenv("DB_BUCKET")
+# Modem sample rate in seconds (int)
+MODEM_DATA_SAMPLE_RATE = int(os.getenv("MODEM_SAMPLE_RATE"))
 
-"""
-If environment variables exist use those
-if not use the above variable settings.
-"""
-DB_USER = os.getenv("INFLUX_USER") if os.getenv("INFLUX_USER") else DB_USERNAME
-DB_PASS = os.getenv("INFLUX_PASS") if os.getenv("INFLUX_PASS") else DB_PASSWORD
-DB_HOST = os.getenv("INFLUX_HOST") if os.getenv("INFLUX_HOST") else DB_SERVER_NAME
-DB_NAME = os.getenv("INFLUX_DB_NAME") if os.getenv("INFLUX_DB_NAME") else DB_INFLUX_NAME
+# ------------------------------------------
+# Regular expression to search modem data
+# ------------------------------------------
+MEASURE_RE = r"\W*\d*\.\d*"
 
 
-def modem_url_request(url='http://192.168.100.1'):
+def modem_url_request(url="http://192.168.100.1"):
     """
     Makes http request to Arris modem
     web page. Returns page content
@@ -40,32 +38,32 @@ def modem_url_request(url='http://192.168.100.1'):
     try:
         r = requests.get(url).content
     except:
-        r = 'failed'
+        r = "failed"
 
-    if r == 'failed':
-        return 'failed'
+    if r == "failed":
+        return "failed"
     else:
         return r
 
 
 def parse_html(content):
-    soup = bs(content, 'html.parser')
+    soup = bs(content, "html.parser")
     return soup
 
 
 def modem_status_table(table):
-    status_table = table.find_all('table', class_='simpleTable')
+    status_table = table.find_all("table", class_="simpleTable")
     return status_table
 
 
 def modem_ds_table_rows(data):
     ds = data[1]
-    ds = ds.find_all('tr')[2:]
+    ds = ds.find_all("tr")[2:]
     return ds
 
 
 def modem_us_table_rows(data):
-    us = data[-1].find_all('tr')[2:]
+    us = data[-1].find_all("tr")[2:]
     return us
 
 
@@ -77,62 +75,64 @@ def strip_table_row_tags(data):
     return channel_data
 
 
-def prep_influx_json(ds, us):
+def prep_influx_data(ds, us) -> dict:
     modem_data = []
-    DATA_TIME = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+    DATA_TIME = int(time.time())
     # Downstream Data
     for row in ds:
         channel = row[0]
+        channel = int(channel)
         power = re.match(MEASURE_RE, row[5]).group(0)
+        power = float(power)
         snr = re.match(MEASURE_RE, row[6]).group(0)
+        snr = float(snr)
         ds_data_power = {
-            'measurement': 'modem_rf_stats',
-            'tags': {'direction': 'downstream', 'channel': channel, 'measure': 'power'},
-            'time': DATA_TIME,
-            'fields': {'power': power}
+            "measurement": "modem_rf_stats",
+            "tags": {"direction": "downstream", "channel": channel, "decibels": "dBmv"},
+            "fields": {"downstream_power": power},
+            "time": DATA_TIME,
         }
         ds_data_snr = {
-            'measurement': 'modem_rf_stats',
-            'tags': {'direction': 'downstream', 'channel': channel, 'measure': 'snr'},
-            'time': DATA_TIME,
-            'fields': {'snr': snr}
+            "measurement": "modem_rf_stats",
+            "tags": {"direction": "downstream", "channel": channel, "decibels": "dB"},
+            "fields": {"signal_to_noise": snr},
+            "time": DATA_TIME,
         }
         modem_data.append(ds_data_power)
         modem_data.append(ds_data_snr)
     # Upstream Data
     for row in us:
         channel = row[0]
+        channel = int(channel)
         power = re.match(MEASURE_RE, row[-1]).group(0)
+        power = float(power)
         us_data = {
-            'measurement': 'modem_rf_stats',
-            'tags': {'direction': 'upstream', 'channel': channel, 'measure': 'power'},
-            'time': DATA_TIME,
-            'fields': {'power': power}
+            "measurement": "modem_rf_stats",
+            "tags": {"direction": "upstream", "channel": channel, "decibels": "dBmv"},
+            "fields": {"upstream_power": power},
+            "time": DATA_TIME,
         }
         modem_data.append(us_data)
-    json_body = json.dumps(modem_data)
-    return json_body
+    return modem_data
 
 
-def write_influxdb_data(data):
-    client = InfluxDBClient(
-        host=DB_HOST,
-        port=8086,
-        username=DB_USER,
-        password=DB_PASS,
-        ssl=True,
-        verify_ssl=TRUST_SSL
-    )
-    db_write = client.write_points(
-        data,
-        time_precision=None,
-        database=DB_NAME,
-        protocol='json'
-        )
-    if db_write == True:
-        return True
-    else:
-        return "Error"
+def influxdb2_writer(input_data):
+    with InfluxDBClient(url=DB_URL, token=DB_TOKEN, org=DB_ORG) as client:
+        with client.write_api(
+            write_options=WriteOptions(
+                batch_size=500,
+                flush_interval=10_000,
+                jitter_interval=2_000,
+                retry_interval=5_000,
+                max_retries=5,
+                max_retry_delay=30_000,
+                exponential_base=2,
+            )
+        ) as _write_client:
+            try:
+                _write_client.write(DB_BUCKET, DB_ORG, input_data, write_precision="s")
+            except:
+                pass
 
 
 def main():
@@ -140,7 +140,7 @@ def main():
     main program
     """
     req = modem_url_request()
-    if req == 'failed':
+    if req == "failed":
         pass
     else:
         html = parse_html(req)
@@ -149,12 +149,11 @@ def main():
         us_rows = modem_us_table_rows(data_tables)
         ds_rows_clean = strip_table_row_tags(ds_rows)
         us_rows_clean = strip_table_row_tags(us_rows)
-        json_body = prep_influx_json(ds_rows_clean, us_rows_clean)
-        json_body = json.loads(json_body)
-        write_influxdb_data(json_body)
+        modem_data = prep_influx_data(ds_rows_clean, us_rows_clean)
+        influxdb2_writer(modem_data)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     while True:
         main()
-        time.sleep(300)
+        time.sleep(MODEM_DATA_SAMPLE_RATE)

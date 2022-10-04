@@ -1,0 +1,18 @@
+[Unit]
+Description=Arris SB6183 Monitor
+After=multi-user.target
+Conflicts=getty@tty1.service
+
+[Service]
+Type=simple
+# Environment variables for monitoring application
+Environment="DB_URL=http://your_url:your_port"
+Environment="DB_TOKEN=your_db_token"
+Environment="DB_ORG=your_org_id"
+Environment="DB_BUCKET=your_bucket_id"
+MODEM_SAMPLE_RATE="120"
+# Run main application
+ExecStart=/path/to/virtualenv/bin/python /opt/arrismodemmon/main.py
+
+[Install]
+WantedBy=multi-user.target
