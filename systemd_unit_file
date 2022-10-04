@@ -1,0 +1,12 @@
+[Unit]
+Description=Arris SB6183 Monitor
+After=multi-user.target
+Conflicts=getty@tty1.service
+
+[Service]
+Type=simple
+ExecStart=/path/to/virtualenv/bin/python /opt/arrismodemmon/main.py
+#StandardInput=tty-force
+
+[Install]
+WantedBy=multi-user.target
